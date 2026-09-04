@@ -55,6 +55,18 @@ class LayerFileListPlugin:
         "crs",
     )
 
+    EXPORT_COLUMN_KEYS = (
+        "index",
+        "group_name",
+        "layer_name",
+        "file_location",
+        "layer_type",
+        "crs",
+        "saved",
+        "in_memory",
+        "provider",
+    )
+
     def __init__(self, iface):
         self.iface = iface
         self.action = None
@@ -193,6 +205,8 @@ class LayerFileListPlugin:
         if self.table is None:
             return
 
+        view_state = self._capture_view_state()
+
         sort_col = self.table.horizontalHeader().sortIndicatorSection()
         sort_order = self.table.horizontalHeader().sortIndicatorOrder()
         sort_col = max(sort_col, 0)
@@ -281,6 +295,50 @@ class LayerFileListPlugin:
         self.table.setSortingEnabled(True)
         self.table.sortItems(sort_col, sort_order)
         self.apply_filter()
+        self._restore_view_state(view_state)
+
+    def _capture_view_state(self):
+        if self.table is None:
+            return None
+
+        vertical = self.table.verticalScrollBar().value()
+        horizontal = self.table.horizontalScrollBar().value()
+
+        current_row = self.table.currentRow()
+        current_col = self.table.currentColumn()
+        selected_layer_id = None
+        if 0 <= current_row < len(self._rows):
+            selected_layer_id = self._rows[current_row].get("layer_id")
+
+        return {
+            "vertical": vertical,
+            "horizontal": horizontal,
+            "current_row": current_row,
+            "current_col": current_col,
+            "selected_layer_id": selected_layer_id,
+        }
+
+    def _restore_view_state(self, view_state):
+        if self.table is None or not view_state:
+            return
+
+        target_row = view_state.get("current_row", -1)
+        layer_id = view_state.get("selected_layer_id")
+        if layer_id:
+            for idx, row in enumerate(self._rows):
+                if row.get("layer_id") == layer_id:
+                    target_row = idx
+                    break
+
+        current_col = view_state.get("current_col", 0)
+        if (
+            0 <= target_row < self.table.rowCount()
+            and 0 <= current_col < self.table.columnCount()
+        ):
+            self.table.setCurrentCell(target_row, current_col)
+
+        self.table.verticalScrollBar().setValue(int(view_state.get("vertical", 0)))
+        self.table.horizontalScrollBar().setValue(int(view_state.get("horizontal", 0)))
 
     def _resize_columns_for_view(self):
         if self.table is None:
@@ -398,22 +456,11 @@ class LayerFileListPlugin:
         try:
             with open(selected_path, "w", encoding="utf-8", newline="") as handle:
                 writer = csv.writer(handle)
-                writer.writerow([label for _key, label in self.COLUMNS])
+                writer.writerow(
+                    [self._label_for_key(key) for key in self.EXPORT_COLUMN_KEYS]
+                )
                 for row in self._rows:
-                    csv_row = []
-                    for key, _label in self.COLUMNS:
-                        if key == "open_button":
-                            csv_row.append(row["open_hint"])
-                        elif key == "activate_button":
-                            csv_row.append(row["activate_hint"])
-                        elif key == "visibility_button":
-                            csv_row.append(row["visibility_button_text"])
-                        elif key == "show_groups_button":
-                            csv_row.append(row["show_groups_hint"])
-                        elif key == "remove_button":
-                            csv_row.append(row["remove_hint"])
-                        else:
-                            csv_row.append(row.get(key, ""))
+                    csv_row = [row.get(key, "") for key in self.EXPORT_COLUMN_KEYS]
                     writer.writerow(csv_row)
         except OSError as exc:
             self._show_message(f"Failed to write CSV: {exc}", Qgis.Critical, 8)
