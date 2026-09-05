@@ -74,6 +74,26 @@ jobs:
               out.write(f"zip_path={zip_path.as_posix()}\n")
           PY
 
+      - name: Install validation tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install qgis-plugin-ci bandit ruff
+
+      - name: Lint and security checks
+        run: |
+          ruff check --ignore EXE002 .
+          bandit -q -r . -x .git,.github,dist,.venv
+
+      - name: Validate plugin package
+        run: |
+          repo_dir_name="$(basename "$PWD")"
+          cat > .qgis-plugin-ci <<YAML
+          plugin_path: .
+          changelog_include: true
+          changelog_path: ${repo_dir_name}/CHANGELOG.md
+          YAML
+          qgis-plugin-ci package --allow-uncommitted-changes --disable-submodule-update "${{ steps.build.outputs.version }}"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

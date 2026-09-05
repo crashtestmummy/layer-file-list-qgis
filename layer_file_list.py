@@ -1,29 +1,27 @@
 import csv
 import os
 import re
-import subprocess
-import sys
 from functools import partial
 
+from qgis.core import Qgis, QgsMapLayerType, QgsProject
 from qgis.PyQt.QtCore import Qt, QUrl
 from qgis.PyQt.QtGui import QDesktopServices
 from qgis.PyQt.QtWidgets import (
-    QAction,
     QAbstractItemView,
+    QAction,
     QComboBox,
     QDockWidget,
     QFileDialog,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
     QPushButton,
-    QHeaderView,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
-from qgis.core import Qgis, QgsMapLayerType, QgsProject
 
 
 def _enum_value(enum_owner, scoped_name, member_name):
@@ -507,16 +505,13 @@ class LayerFileListPlugin:
             return
 
         try:
-            if sys.platform.startswith("win") and os.path.isfile(path):
-                subprocess.Popen(["explorer", "/select,", os.path.normpath(path)])
-            else:
-                target = os.path.dirname(path) if os.path.isfile(path) else path
-                if not QDesktopServices.openUrl(QUrl.fromLocalFile(target)):
-                    self._show_message(
-                        "Failed to open the layer location.",
-                        MSG_WARNING,
-                        6,
-                    )
+            target = os.path.dirname(path) if os.path.isfile(path) else path
+            if not QDesktopServices.openUrl(QUrl.fromLocalFile(target)):
+                self._show_message(
+                    "Failed to open the layer location.",
+                    MSG_WARNING,
+                    6,
+                )
         except OSError as exc:
             self._show_message(f"Failed to open location: {exc}", MSG_CRITICAL, 8)
 
@@ -599,22 +594,26 @@ class LayerFileListPlugin:
             return "Raster"
         if layer_type == map_layer_type.MeshLayer:
             return "Mesh"
-        if hasattr(map_layer_type, "VectorTileLayer") and layer_type == getattr(
-            map_layer_type, "VectorTileLayer"
+        if (
+            hasattr(map_layer_type, "VectorTileLayer")
+            and layer_type == map_layer_type.VectorTileLayer
         ):
             return "Vector tile"
-        if hasattr(map_layer_type, "AnnotationLayer") and layer_type == getattr(
-            map_layer_type, "AnnotationLayer"
+        if (
+            hasattr(map_layer_type, "AnnotationLayer")
+            and layer_type == map_layer_type.AnnotationLayer
         ):
             return "Annotation"
-        if hasattr(map_layer_type, "PointCloudLayer") and layer_type == getattr(
-            map_layer_type, "PointCloudLayer"
+        if (
+            hasattr(map_layer_type, "PointCloudLayer")
+            and layer_type == map_layer_type.PointCloudLayer
         ):
             return "Point cloud"
         if layer_type == map_layer_type.PluginLayer:
             return "Plugin"
-        if hasattr(map_layer_type, "GroupLayer") and layer_type == getattr(
-            map_layer_type, "GroupLayer"
+        if (
+            hasattr(map_layer_type, "GroupLayer")
+            and layer_type == map_layer_type.GroupLayer
         ):
             return "Group"
 

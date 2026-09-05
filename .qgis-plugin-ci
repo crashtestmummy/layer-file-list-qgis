@@ -1,0 +1,3 @@
+plugin_path: .
+changelog_include: true
+changelog_path: REPO_DIR_NAME/CHANGELOG.md

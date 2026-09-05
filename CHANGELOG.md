@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3 - 2026-09-05
+
+- Fixed qgis-plugin-ci changelog path resolution during local Docker pre-release validation.
+- Fixed GitHub Actions validation config so changelog detection uses the repository code path.
+
 ## 0.1.2 - 2026-09-05
 
 - Added Qt6-compatible enum usage to address plugin checker compatibility findings.
