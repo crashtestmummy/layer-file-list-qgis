@@ -9,6 +9,7 @@ from qgis.PyQt.QtCore import Qt, QUrl
 from qgis.PyQt.QtGui import QDesktopServices
 from qgis.PyQt.QtWidgets import (
     QAction,
+    QAbstractItemView,
     QComboBox,
     QDockWidget,
     QFileDialog,
@@ -23,6 +24,26 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 from qgis.core import Qgis, QgsMapLayerType, QgsProject
+
+
+def _enum_value(enum_owner, scoped_name, member_name):
+    scoped = getattr(enum_owner, scoped_name, None)
+    if scoped is not None:
+        return getattr(scoped, member_name)
+    return getattr(enum_owner, member_name)
+
+
+SELECTION_ROWS = _enum_value(QAbstractItemView, "SelectionBehavior", "SelectRows")
+SELECTION_SINGLE = _enum_value(QAbstractItemView, "SelectionMode", "SingleSelection")
+HEADER_RESIZE_INTERACTIVE = _enum_value(QHeaderView, "ResizeMode", "Interactive")
+TEXT_ELIDE_MIDDLE = _enum_value(Qt, "TextElideMode", "ElideMiddle")
+DOCK_RIGHT = _enum_value(Qt, "DockWidgetArea", "RightDockWidgetArea")
+ITEM_DISPLAY_ROLE = _enum_value(Qt, "ItemDataRole", "DisplayRole")
+ITEM_EDIT_ROLE = _enum_value(Qt, "ItemDataRole", "EditRole")
+ITEM_IS_EDITABLE = _enum_value(Qt, "ItemFlag", "ItemIsEditable")
+MSG_WARNING = _enum_value(Qgis, "MessageLevel", "Warning")
+MSG_SUCCESS = _enum_value(Qgis, "MessageLevel", "Success")
+MSG_CRITICAL = _enum_value(Qgis, "MessageLevel", "Critical")
 
 
 class LayerFileListPlugin:
@@ -150,11 +171,11 @@ class LayerFileListPlugin:
         self.table.setColumnCount(len(self.COLUMNS))
         self.table.setHorizontalHeaderLabels([label for _key, label in self.COLUMNS])
         self.table.setAlternatingRowColors(True)
-        self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.table.setSelectionMode(QTableWidget.SingleSelection)
+        self.table.setSelectionBehavior(SELECTION_ROWS)
+        self.table.setSelectionMode(SELECTION_SINGLE)
         self.table.setSortingEnabled(True)
         self.table.setWordWrap(False)
-        self.table.setTextElideMode(Qt.ElideMiddle)
+        self.table.setTextElideMode(TEXT_ELIDE_MIDDLE)
         self.table.setStyleSheet(
             "QTableWidget::item { padding: 1px 4px; }"
             "QHeaderView::section { padding: 2px 4px; }"
@@ -167,7 +188,7 @@ class LayerFileListPlugin:
         header.setStretchLastSection(False)
         header.setSectionsMovable(True)
         for col in range(len(self.COLUMNS)):
-            header.setSectionResizeMode(col, QHeaderView.Interactive)
+            header.setSectionResizeMode(col, HEADER_RESIZE_INTERACTIVE)
 
         self.table.setColumnWidth(self._col("index"), 70)
         self.table.setColumnWidth(self._col("group_name"), 180)
@@ -199,7 +220,7 @@ class LayerFileListPlugin:
         self.filter_line_edit.textChanged.connect(self.apply_filter)
         clear_filter_button.clicked.connect(self._clear_filter)
 
-        self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dock_widget)
+        self.iface.addDockWidget(DOCK_RIGHT, self.dock_widget)
 
     def refresh_table(self):
         if self.table is None:
@@ -361,7 +382,7 @@ class LayerFileListPlugin:
 
         layer = QgsProject.instance().mapLayer(layer_id)
         if layer is None:
-            self._show_message("Layer is no longer available.", Qgis.Warning, 5)
+            self._show_message("Layer is no longer available.", MSG_WARNING, 5)
             return
 
         self.iface.setActiveLayer(layer)
@@ -376,7 +397,7 @@ class LayerFileListPlugin:
     def toggle_layer_visibility(self, layer_id):
         node = self._layer_tree_node(layer_id)
         if node is None:
-            self._show_message("Layer is no longer available.", Qgis.Warning, 5)
+            self._show_message("Layer is no longer available.", MSG_WARNING, 5)
             return
 
         node.setItemVisibilityChecked(not node.itemVisibilityChecked())
@@ -385,7 +406,7 @@ class LayerFileListPlugin:
     def set_parent_groups_visible(self, layer_id):
         node = self._layer_tree_node(layer_id)
         if node is None:
-            self._show_message("Layer is no longer available.", Qgis.Warning, 5)
+            self._show_message("Layer is no longer available.", MSG_WARNING, 5)
             return
 
         parent = node.parent()
@@ -399,7 +420,7 @@ class LayerFileListPlugin:
     def remove_layer(self, layer_id):
         layer = QgsProject.instance().mapLayer(layer_id)
         if layer is None:
-            self._show_message("Layer is no longer available.", Qgis.Warning, 5)
+            self._show_message("Layer is no longer available.", MSG_WARNING, 5)
             self.refresh_table()
             return
 
@@ -437,7 +458,7 @@ class LayerFileListPlugin:
 
     def export_csv(self):
         if not self._rows:
-            self._show_message("No layers available to export.", Qgis.Warning, 5)
+            self._show_message("No layers available to export.", MSG_WARNING, 5)
             return
 
         default_path = self._default_export_path()
@@ -463,12 +484,12 @@ class LayerFileListPlugin:
                     csv_row = [row.get(key, "") for key in self.EXPORT_COLUMN_KEYS]
                     writer.writerow(csv_row)
         except OSError as exc:
-            self._show_message(f"Failed to write CSV: {exc}", Qgis.Critical, 8)
+            self._show_message(f"Failed to write CSV: {exc}", MSG_CRITICAL, 8)
             return
 
         self._show_message(
             f"Exported {len(self._rows)} layer row(s) to {selected_path}",
-            Qgis.Success,
+            MSG_SUCCESS,
             6,
         )
 
@@ -480,7 +501,7 @@ class LayerFileListPlugin:
         if not os.path.exists(path):
             self._show_message(
                 "Location does not exist on disk for this layer.",
-                Qgis.Warning,
+                MSG_WARNING,
                 5,
             )
             return
@@ -493,11 +514,11 @@ class LayerFileListPlugin:
                 if not QDesktopServices.openUrl(QUrl.fromLocalFile(target)):
                     self._show_message(
                         "Failed to open the layer location.",
-                        Qgis.Warning,
+                        MSG_WARNING,
                         6,
                     )
         except OSError as exc:
-            self._show_message(f"Failed to open location: {exc}", Qgis.Critical, 8)
+            self._show_message(f"Failed to open location: {exc}", MSG_CRITICAL, 8)
 
     def _collect_rows(self):
         root = QgsProject.instance().layerTreeRoot()
@@ -744,7 +765,7 @@ class LayerFileListPlugin:
     def _set_item(self, row_index, column_index, value, sort_value=None):
         item = QTableWidgetItem()
         if isinstance(value, (int, float)):
-            item.setData(Qt.DisplayRole, value)
+            item.setData(ITEM_DISPLAY_ROLE, value)
         else:
             item.setText(str(value))
 
@@ -752,8 +773,8 @@ class LayerFileListPlugin:
             item.setToolTip(str(value))
 
         if sort_value is not None:
-            item.setData(Qt.EditRole, sort_value)
-        item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+            item.setData(ITEM_EDIT_ROLE, sort_value)
+        item.setFlags(item.flags() & ~ITEM_IS_EDITABLE)
         if self.table is not None:
             self.table.setItem(row_index, column_index, item)
 

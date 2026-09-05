@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2 - 2026-09-05
+
+- Added Qt6-compatible enum usage to address plugin checker compatibility findings.
+- Updated release packaging process to produce QGIS repository compliant ZIP archives.
+
 ## 0.1.1 - 2026-09-05
 
 - Improved cross-platform archive container path detection for non-Windows path forms.

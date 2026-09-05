@@ -1,0 +1,89 @@
+name: Release Plugin On Tag
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build plugin zip
+        id: build
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import os
+          import re
+          import zipfile
+          from pathlib import Path
+
+          repo = Path.cwd()
+          metadata = repo / "metadata.txt"
+          text = metadata.read_text(encoding="utf-8")
+          match = re.search(r"^\s*version\s*=\s*(.+?)\s*$", text, re.MULTILINE)
+          if not match:
+              raise SystemExit("Could not find version= in metadata.txt")
+
+          version = match.group(1).strip()
+          tag = os.environ.get("GITHUB_REF_NAME", "")
+          if tag.startswith("v") and tag[1:] != version:
+              raise SystemExit(
+                  f"Tag/version mismatch: tag is '{tag}' but metadata version is '{version}'"
+              )
+
+          plugin_dir_name = "layer_file_list"
+          dist = repo / "dist"
+          dist.mkdir(exist_ok=True)
+          zip_path = dist / f"{plugin_dir_name}-{version}.zip"
+
+          exclude_dirs = {".git", ".github", "dist", "__pycache__", ".venv"}
+          exclude_suffixes = {".pyc", ".pyo"}
+
+          with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
+              for path in sorted(repo.rglob("*")):
+                  rel = path.relative_to(repo)
+                  rel_parts = rel.parts
+                  if any(part in exclude_dirs for part in rel_parts):
+                      continue
+                  if path.is_dir():
+                      continue
+                  if path.suffix.lower() in exclude_suffixes:
+                      continue
+
+                  arcname = Path(plugin_dir_name, rel).as_posix()
+                  zf.write(path, arcname)
+
+          print(f"version={version}")
+          print(f"zip_path={zip_path.as_posix()}")
+
+          output_path = Path(os.environ["GITHUB_OUTPUT"])
+          with output_path.open("a", encoding="utf-8") as out:
+              out.write(f"version={version}\n")
+              out.write(f"zip_path={zip_path.as_posix()}\n")
+          PY
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: layer_file_list-${{ steps.build.outputs.version }}
+          path: ${{ steps.build.outputs.zip_path }}
+
+      - name: Create or update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Layer File List ${{ steps.build.outputs.version }}
+          generate_release_notes: true
+          files: ${{ steps.build.outputs.zip_path }}
