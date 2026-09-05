@@ -657,7 +657,11 @@ class LayerFileListPlugin:
             idx = lowered.find(prefix)
             if idx >= 0:
                 candidate = source[idx + len(prefix) :]
-                candidate = candidate.lstrip("/").lstrip("\\")
+                if re.match(r"^/[A-Za-z]:[\\/]", candidate):
+                    # Convert /C:/... (common in GDAL virtual paths) to C:/...
+                    candidate = candidate[1:]
+                elif not re.match(r"^([A-Za-z]:[\\/]|[\\/]{2}|[\\/])", candidate):
+                    candidate = candidate.lstrip("/").lstrip("\\")
                 archive_path = self._extract_archive_path_with_extension(candidate)
                 if archive_path and os.path.exists(archive_path):
                     return os.path.normpath(archive_path)
@@ -681,11 +685,22 @@ class LayerFileListPlugin:
 
     def _extract_archive_path_with_extension(self, value):
         # Capture the container path up to a known archive extension.
-        match = re.search(
-            r"([A-Za-z]:[\\/][^|]*?\.(zip|7z|tar|tar\.gz|tgz))", value, re.IGNORECASE
-        )
-        if match:
-            return match.group(1).replace("/", os.sep).replace("\\", os.sep)
+        cleaned = (value or "").split("|", 1)[0].split("?", 1)[0].strip().strip("'\"")
+        lowered = cleaned.lower()
+        extensions = (".tar.gz", ".zip", ".7z", ".tgz", ".tar")
+
+        for ext in extensions:
+            idx = lowered.find(ext)
+            if idx < 0:
+                continue
+
+            end = idx + len(ext)
+            path = cleaned[:end].replace("\\", "/")
+            if re.match(r"^/[A-Za-z]:/", path):
+                path = path[1:]
+
+            return os.path.normpath(path.replace("/", os.sep))
+
         return ""
 
     def apply_filter(self):

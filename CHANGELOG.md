@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1 - 2026-09-05
+
+- Improved cross-platform archive container path detection for non-Windows path forms.
+- Aligned README terminology with current cross-platform open-location behaviour.
+
 ## 0.1.0 - 2026-09-04
 
 - Initial public release.

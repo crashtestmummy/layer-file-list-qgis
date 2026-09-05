@@ -10,7 +10,7 @@ Lists loaded project layers in a non-blocking dock table.
 - Type
 - Provider
 - File location
-- Explorer
+- Open
 - Activate
 - Visible
 - In memory
@@ -20,7 +20,7 @@ Lists loaded project layers in a non-blocking dock table.
 ## Features
 
 - Refresh table from current project layer tree.
-- Open data location in Windows Explorer.
+- Open data location in your system file manager.
 - Activate any listed layer in the QGIS layer tree.
 - Export rows to CSV.
 - Sort by clicking column headers.
