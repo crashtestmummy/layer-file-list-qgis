@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4 - 2026-09-05
+
+- Updated release workflow linting to stage plugin code under `layer_file_list` and avoid false Ruff N999 failures from hyphenated repository folder names.
+
 ## 0.1.3 - 2026-09-05
 
 - Fixed qgis-plugin-ci changelog path resolution during local Docker pre-release validation.

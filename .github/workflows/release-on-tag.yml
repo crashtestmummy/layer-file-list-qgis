@@ -81,8 +81,35 @@ jobs:
 
       - name: Lint and security checks
         run: |
-          ruff check --ignore EXE002 .
-          bandit -q -r . -x .git,.github,dist,.venv
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+
+          src = Path.cwd()
+          stage_root = src / ".ci_stage"
+          stage_plugin = stage_root / "layer_file_list"
+          if stage_root.exists():
+            shutil.rmtree(stage_root)
+          stage_plugin.mkdir(parents=True)
+
+          skip_dirs = {".git", ".github", "dist", ".venv", "__pycache__", ".ci_stage"}
+          skip_suffixes = {".pyc", ".pyo"}
+
+          for path in src.rglob("*"):
+            rel = path.relative_to(src)
+            if any(part in skip_dirs for part in rel.parts):
+              continue
+            target = stage_plugin / rel
+            if path.is_dir():
+              target.mkdir(parents=True, exist_ok=True)
+              continue
+            if path.suffix.lower() in skip_suffixes:
+              continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, target)
+          PY
+          ruff check --ignore EXE002 .ci_stage/layer_file_list
+          bandit -q -r .ci_stage/layer_file_list -x .ci_stage/layer_file_list/.git,.ci_stage/layer_file_list/.github,.ci_stage/layer_file_list/dist,.ci_stage/layer_file_list/.venv
 
       - name: Validate plugin package
         run: |
